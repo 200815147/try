@@ -1,0 +1,19 @@
+----- READING DATA SET FROM: data/tmp/tmp.cvrptw
+----- FLEET SIZE SPECIFIED IN THE COMMANDLINE: SET TO 102 VEHICLES
+----- INSTANCE LOADED WITH 101 CLIENTS AND 102 VEHICLES
+----- BUILDING INITIAL POPULATION
+Generated 5 individuals using Nearest
+It     -1     -1 | T(s) 0.04 | Feas 1 180410.00 180410.00 | Inf 5 177084.00 178564.00 | Div -nan 0.35 | Feas 1.00 0.95 | Pen 831.10 1.00
+Generated 5 individuals using Furthest
+It     -1     -1 | T(s) 0.07 | Feas 2 176771.00 178590.50 | Inf 10 175965.00 181543.80 | Div 0.29 0.42 | Feas 1.00 0.90 | Pen 831.10 1.00
+Generated 5 individuals using Sweep
+It     -1     -1 | T(s) 0.13 | Feas 3 176771.00 183031.33 | Inf 15 175965.00 187266.47 | Div 0.38 0.50 | Feas 1.00 0.85 | Pen 831.10 1.00
+Generated 85 individuals Randomly
+It     -1     -1 | T(s) 1.31 | Feas 27 176771.00 188604.56 | Inf 59 163196.00 174145.44 | Div 0.39 0.39 | Feas 1.00 0.00 | Pen 831.10 1.00
+----- STARTING GENETIC ALGORITHM
+It      0      2 | T(s) 1.31 | Feas 27 176771.00 188604.56 | Inf 60 176757.00 209996.84 | Div 0.39 0.40 | Feas 1.00 0.00 | Pen 706.43 2.00
+It    500     45 | T(s) 3.37 | Feas 32 169376.00 171326.24 | Inf 32 168480.41 170285.13 | Div 0.32 0.32 | Feas 1.00 0.04 | Pen 313.45 4.98
+It   1000    328 | T(s) 4.99 | Feas 36 168369.00 169286.08 | Inf 36 168450.15 169452.53 | Div 0.22 0.26 | Feas 1.00 0.20 | Pen 139.08 6.09
+It   1500    828 | T(s) 6.35 | Feas 65 168369.00 168501.76 | Inf 59 168348.72 168676.44 | Div 0.09 0.18 | Feas 1.00 0.28 | Pen 61.71 5.18
+----- GENETIC ALGORITHM FINISHED, TIME SPENT: 6.83715
+----- WRITING SOLUTION WITH VALUE 168369 IN : data/tmp/tmp.sol

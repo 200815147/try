@@ -51,7 +51,7 @@ if __name__ == '__main__':
     start_time = time.time()
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--path', type=str)
-    parser.add_argument('--subproblem_size', type=int, default=30)
+    parser.add_argument('--subproblem_size', type=int, default=100)
     args = parser.parse_args()
     _st = time.time()
     x, y, demand, capacity, early, late, service, depot_id, n = read_vrptw_problem(args.path)
@@ -86,14 +86,28 @@ if __name__ == '__main__':
     # exit(0)
     # pdb.set_trace()
     labels = fp.labels # numpy.ndarray
-    if True:
-        routes, cost, _ = read_sol('data/cvrptw/1000/hgs/solution/2.sol')
+    if False:
+        routes, cost, _ = read_sol('data/cvrptw/1000/hgs/solution/4.sol')
+        centroid = [None for _ in range(len(routes))]
+        for i, route in enumerate(routes):
+            xx = []
+            yy = []
+            for v in route:
+                xx.append(x[v])
+                yy.append(y[v])
+            centroid[i] = (np.mean(xx), np.mean(yy))
+        kmeans = KMeans(n_clusters=10, random_state=0, n_init="auto", init="k-means++").fit(centroid)
         num_subproblems = len(routes)
         for i, route in enumerate(routes):
             for v in route:
-                labels[v - 1] = i
+                labels[v - 1] = kmeans.labels_[i]
         print(f'Sol cost: {cost}')
         # Cost: 1158810
+        #   solver  cluster
+        # 0 1168372 1167704
+        # 1 1162330 1167772
+        # 2 1144044 1144080
+        # 3 1462459 1461928
     x_list = [[] for _ in range(num_subproblems)]
     y_list = [[] for _ in range(num_subproblems)]
     demand_list = [[] for _ in range(num_subproblems)]
@@ -142,13 +156,14 @@ if __name__ == '__main__':
         # print(cost)
         # print_routes(sol)
     print(f'Total cost: {total_cost}')
-    exit(0)
-    for i in range(2):
+    # exit(0)
+    for i in range(1):
         sol, m = merge_subproblems(subproblems, sols)
         # print_routes(sol)
         print(f'Iterations: {i} Cost: {sol.distance()}')
         cur_time = time.time()
         print(f'Total time cost: {cur_time - start_time}')
+        break
         # exit(0)
         subproblems = devide_subproblems(sol, args.subproblem_size * 4, m)
         sols = improve_subproblems(subproblems)

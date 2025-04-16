@@ -278,6 +278,7 @@ def improve_one_subproblem(sol: Solution, data: Model, start_time: float=None, k
         service = [0] + [clients[v].service_duration for v in points]
         m = create_problem(x, y, demand, capacity, early, late, service)
         print(f'Iterations: {i}', end=' ')
+        print(f'Subproblem size: {len(x)}', end=' ')
         cost = 0
         for route in routes:
             cost += dimacs_round(np.sqrt((depot.x - clients[route[0]].x) ** 2 + (depot.y - clients[route[0]].y) ** 2))
@@ -285,12 +286,16 @@ def improve_one_subproblem(sol: Solution, data: Model, start_time: float=None, k
             for j in range(len(route) - 1):
                 cost += dimacs_round(np.sqrt((clients[route[j]].x - clients[route[j + 1]].x) ** 2 + (clients[route[j]].y - clients[route[j + 1]].y) ** 2))
         print(f'Before: {cost}', end=' ')
-        improved_sol = m.solve(stop=MaxIterations(5000), display=False).best
-        # pdb.set_trace()
         for r in sorted(k_nearest[idx], reverse=True):
             del routes[r]
-        for route in improved_sol.routes():
-            routes.append([points[v - 1] for v in route])
+        if True:
+            new_routes, _, _ = solve_by_hgs(m, None, 1000)
+            for route in new_routes:
+                routes.append([points[v - 1] for v in route])
+        else:
+            improved_sol = m.solve(stop=MaxIterations(1000), display=False).best
+            for route in improved_sol.routes():
+                routes.append([points[v - 1] for v in route])
         # pdb.set_trace()
         cost = 0
         for route in routes:
@@ -334,3 +339,50 @@ def write_problems(data: Model, path: str):
             f.write(str(l + 2) + " " + str(clients[l].service_duration) + '\n')
         f.write("DEPOT_SECTION\n 1\n -1\n")
         f.write("EOF\n")
+
+def routes2str(routes):
+    s = ''
+    for route in routes:
+        s += '0 '
+        for v in route:
+            s += str(v) + ' '
+    s = s[:-1]
+    return s
+
+def solve_by_ls(data: Model):
+    tmp_problem_path = 'data/tmp/tmp.cvrptw'
+    tmp_solution_path = 'data/tmp/tmp.sol'
+    write_problems(data, tmp_problem_path)
+    n = len(data._clients) + 1
+    cmd = f'./my_hgs_vrptw/genvrp {tmp_problem_path} {tmp_solution_path} -intensificationProbabilityLS 100 -initialSolution "'
+    for j in range(1, n):
+        cmd += f'0 {j}'
+        if j != n - 1:
+            cmd += ' '
+    cmd += '"'
+    os.system(cmd)
+    return read_sol(tmp_solution_path)
+
+def solve_by_hgs(data: Model, max_t=None, max_it=None):
+    tmp_problem_path = 'data/tmp/tmp.cvrptw'
+    tmp_solution_path = 'data/tmp/tmp.sol'
+    write_problems(data, tmp_problem_path)
+    cmd = f'./hgs_vrptw/genvrp {tmp_problem_path} {tmp_solution_path}'
+    if max_t:
+        cmd += f' -t {max_t}'
+    if max_it:
+        cmd += f' -it {max_it}'
+    cmd += ' > out'
+    os.system(cmd)
+    return read_sol(tmp_solution_path)
+
+def improve_by_ls(data: Model, routes):
+    tmp_problem_path = 'data/tmp/tmp.cvrptw'
+    tmp_solution_path = 'data/tmp/tmp.sol'
+    write_problems(data, tmp_problem_path)
+    n = len(data._clients) + 1
+    cmd = f'./my_hgs_vrptw/genvrp {tmp_problem_path} {tmp_solution_path} -intensificationProbabilityLS 100 -initialSolution "'
+    cmd += routes2str(routes)
+    cmd += '"'
+    os.system(cmd)
+    return read_sol(tmp_solution_path)
