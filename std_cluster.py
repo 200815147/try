@@ -16,12 +16,12 @@ from utils import *
 MY_SEED = 200815147
 
 # 核心计算函数
-def compute_element(pair, similarity):
+def compute_element(pair, std_distance):
     i, j = pair
-    val = min(similarity(i, j), similarity(j, i))
+    val = min(std_distance(i, j), std_distance(j, i))
     return (i, j, val)
 
-def parallel_matrix_build(n, similarity):
+def parallel_matrix_build(n, std_distance):
     # 初始化空矩阵（对称矩阵）
     matrix = np.zeros((n-1, n-1), dtype=np.float32)
     
@@ -35,7 +35,7 @@ def parallel_matrix_build(n, similarity):
     with mp.Pool(processes=num_cores) as pool:
         # 使用imap_unordered减少内存占用
         results = pool.imap_unordered(
-            partial(compute_element, similarity=similarity),
+            partial(compute_element, std_distance=std_distance),
             indices,
             chunksize=chunk_size
         )
@@ -55,7 +55,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     _st = time.time()
     x, y, demand, capacity, early, late, service, depot_id, n = read_vrptw_problem(args.path)
-    def similarity(i, j):
+    def std_distance(i, j):
         distance = math.sqrt((x[i] - x[j]) ** 2 + (y[i] - y[j]) ** 2)
         f = late[j] - (early[i] + service[i] + distance)
         h = max(early[j] - (late[i] + service[i] + distance), 0)
@@ -64,11 +64,11 @@ if __name__ == '__main__':
 
     matrix = np.zeros((n - 1, n - 1), dtype=float)
     if True:
-        matrix = parallel_matrix_build(n, similarity)
+        matrix = parallel_matrix_build(n, std_distance)
     else:
         for i in range(1, n):
             for j in range(i + 1, n):
-                matrix[i - 1][j - 1] = matrix[j - 1][i - 1] = min(similarity(i, j), similarity(j, i))
+                matrix[i - 1][j - 1] = matrix[j - 1][i - 1] = min(std_distance(i, j), std_distance(j, i))
     num_subproblems = (n + args.subproblem_size - 1) // args.subproblem_size
     print(f'Num of subproblems: {num_subproblems}')
     st = time.time()
@@ -148,9 +148,12 @@ if __name__ == '__main__':
     total_cost = 0
     sols = []
     for subproblem in subproblems:
-        sol = subproblem.solve(stop=MaxIterations(1000), display=False).best
+        if False:
+            sol = subproblem.solve(stop=MaxIterations(1000), display=False).best
+            cost = sol.distance()
+        else:
+            sol, cost, _ = solve_by_hgs(subproblem, None, 1000)
         sols.append(sol)
-        cost = sol.distance()
         # pdb.set_trace()
         total_cost += cost
         # print(cost)
@@ -168,7 +171,9 @@ if __name__ == '__main__':
         subproblems = devide_subproblems(sol, args.subproblem_size * 4, m)
         sols = improve_subproblems(subproblems)
     cur_time = time.time()
-    print(f'Total time cost: {cur_time - start_time}')
+    # print(f'Total time cost: {cur_time - start_time}')
+    # routes, cost, _ = improve_by_ls(m, sol.routes())
+    # pdb.set_trace()
     improve_one_subproblem(sol, m, start_time)
 # python std_cluster.py --path test_data/n_1000_0.cvrptw
 # python std_cluster.py --path test_data/n_50_0.cvrptw

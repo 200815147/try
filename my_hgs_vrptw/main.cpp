@@ -26,30 +26,37 @@ int main(int argc, char* argv[])
 		Split split(&params);
 		LocalSearch localSearch(&params);
 
-		Individual initialSolution(&params, commandline.config.initialSolution);
-		localSearch.run(&initialSolution, params.penaltyCapacity, params.penaltyTimeWarp);
-		initialSolution.exportCVRPLibFormat(commandline.config.pathSolution);
-		// Initial population
-		// std::cout << "----- INSTANCE LOADED WITH " << params.nbClients << " CLIENTS AND " << params.nbVehicles << " VEHICLES" << std::endl;
-		// std::cout << "----- BUILDING INITIAL POPULATION" << std::endl;
-		// Population population(&params, &split, &localSearch);
+		if (!commandline.config.runHGS)
+		{
+			// Local search
+			Individual initialSolution(&params, commandline.config.initialSolution);
+			localSearch.run(&initialSolution, params.penaltyCapacity, params.penaltyTimeWarp);
+			initialSolution.exportCVRPLibFormat(commandline.config.pathSolution);
+		}
+		else
+		{
+			// Initial population
+			std::cout << "----- INSTANCE LOADED WITH " << params.nbClients << " CLIENTS AND " << params.nbVehicles << " VEHICLES" << std::endl;
+			std::cout << "----- BUILDING INITIAL POPULATION" << std::endl;
+			Population population(&params, &split, &localSearch);
 
-		// Genetic algorithm
-		// std::cout << "----- STARTING GENETIC ALGORITHM" << std::endl;
-		// Genetic solver(&params, &split, &population, &localSearch);
-		// solver.run(commandline.config.nbIter, commandline.config.timeLimit);
-		// std::cout << "----- GENETIC ALGORITHM FINISHED, TIME SPENT: " << params.getTimeElapsedSeconds() << std::endl;
+			// Genetic algorithm
+			std::cout << "----- STARTING GENETIC ALGORITHM" << std::endl;
+			Genetic solver(&params, &split, &population, &localSearch);
+			solver.run(commandline.config.nbIter, commandline.config.timeLimit);
+			std::cout << "----- GENETIC ALGORITHM FINISHED, TIME SPENT: " << params.getTimeElapsedSeconds() << std::endl;
 
-		// Export the best solution, if it exist
-		// if (population.getBestFound() != nullptr)
-		// {
-		// 	population.getBestFound()->exportCVRPLibFormat(commandline.config.pathSolution);
-		// 	population.exportSearchProgress(commandline.config.pathSolution + ".PG.csv", commandline.config.pathInstance, commandline.config.seed);
-		// 	if (commandline.config.pathBKS != "")
-		// 	{
-		// 		population.exportBKS(commandline.config.pathBKS);
-		// 	}
-		// }
+			// Export the best solution, if it exist
+			if (population.getBestFound() != nullptr)
+			{
+				population.getBestFound()->exportCVRPLibFormat(commandline.config.pathSolution);
+				population.exportSearchProgress(commandline.config.pathSolution + ".PG.csv", commandline.config.pathInstance, commandline.config.seed);
+				if (commandline.config.pathBKS != "")
+				{
+					population.exportBKS(commandline.config.pathBKS);
+				}
+			}
+		}
 	}
 
 	// Catch exceptions

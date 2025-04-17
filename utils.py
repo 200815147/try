@@ -62,23 +62,24 @@ def devide_subproblems(sol: Solution, subproblems_size, data: Model) -> list[Mod
             for to in locations:
                 distance = dimacs_round(np.sqrt((frm.x - to.x) ** 2 + (frm.y - to.y) ** 2))
                 subproblems[i].add_edge(frm, to, distance=distance, duration=distance)
-    # pdb.set_trace()
     return subproblems
 
 def improve_subproblems(subproblems: list[Model]) -> list[Solution]:
     return [subproblem.solve(stop=MaxIterations(500), display=False).best for subproblem in subproblems]
 
-def merge_subproblems(subproblems: list[Model], sols: list[Solution]) -> tuple[Solution, Model]:
+def merge_subproblems(subproblems: list[Model], sols: list[Solution | list[int]]) -> tuple[Solution, Model]:
     data = Model()
     routes = []
     data._depots = subproblems[0]._depots
     capacity = subproblems[0]._vehicle_types[0].capacity[0]
     offset = 0
     for i in range(len(subproblems)):
-        tmp_route = [[x + offset for x in list(route)] for route in sols[i].routes()]
+        if isinstance(sols[i], Route):
+            tmp_route = [[x + offset for x in list(route)] for route in sols[i].routes()]
+        else:
+            tmp_route = [[x + offset for x in list(route)] for route in sols[i]]
         routes.extend(tmp_route)
         data._clients.extend(subproblems[i]._clients)
-        # print(sum([c.delivery[0] for c in subproblems[i]._clients]))
         # Merge edges is not needed
         offset += len(subproblems[i]._clients)
     data.add_vehicle_type(len(data._clients), capacity=capacity)
@@ -88,7 +89,6 @@ def merge_subproblems(subproblems: list[Model], sols: list[Solution]) -> tuple[S
     y1 = y[:, np.newaxis]
     matrix = np.sqrt((x1 - x) ** 2 + (y1 - y) ** 2)
     matrix = (matrix * 10).astype(int) // 10
-    # pdb.set_trace()
     problemdata = ProblemData(
             data._clients,
             data._depots,
@@ -97,15 +97,12 @@ def merge_subproblems(subproblems: list[Model], sols: list[Solution]) -> tuple[S
             [matrix],
             data._groups,
         )
-    # print(routes)
-    
     return Solution(data=problemdata, routes=routes), data
 
 def create_problem(x, y, demand, capacity, early=None, late=None, service=None) -> Model:
     m = Model()
     m.add_vehicle_type(len(x), capacity=capacity)
     depot = m.add_depot(x=x[0], y=y[0])
-    # pdb.set_trace()
     if early:
         clients = [
             m.add_client(x=x[idx], y=y[idx], delivery=demand[idx],
@@ -125,7 +122,6 @@ def create_problem(x, y, demand, capacity, early=None, late=None, service=None) 
                 m.add_edge(frm, to, distance=distance, duration=distance)
             else:
                 m.add_edge(frm, to, distance=distance)
-    # pdb.set_trace()
     return m
 
 def read_vrptw_problem(file_path):
@@ -241,24 +237,22 @@ def get_k_nearest(points, k):
         k_nearest.append(ind[0])
     return k_nearest
 
-def improve_one_subproblem(sol: Solution, data: Model, start_time: float=None, k: int=10, iters: int=50):
+def improve_one_subproblem(sol: Solution, data: Model, start_time: float=None, k: int=10, iters: int=500):
     n = sol.num_clients()
     clients = [None] + data._clients # 1-index
     depot = data._depots[0]
     capacity = data._vehicle_types[0].capacity[0]
     counter = [0 for _ in range(n + 5)] # 1-index
     sum_route = [0 for _ in range(n + 5)]
-    to = [0 for _ in range(n + 5)]
     routes = [list(route) for route in sol.routes()]
+    subproblems_set = set()
     for i in range(iters):
         for j in range(len(routes)):
             sum_route[j] = sum([counter[v] for v in routes[j]])
         X = np.array([(np.mean([clients[v].x for v in route]), np.mean([clients[v].y for v in route])) for route in routes]) # Depot?
-        # 
         k_nearest = get_k_nearest(X, k)
         idx = None
         mn_count = 9999999
-        # pdb.set_trace()
         for j in range(len(routes)):
             s = sum([sum_route[r] for r in k_nearest[j]])
             if s < mn_count:
@@ -267,9 +261,12 @@ def improve_one_subproblem(sol: Solution, data: Model, start_time: float=None, k
         points = []
         for r in k_nearest[idx]:
             for v in routes[r]:
-                to[v] = len(points)
                 points.append(v)
                 counter[v] += 1
+        hash_val = tuple(sorted(points))
+        if hash_val in subproblems_set:
+            continue
+        subproblems_set.add(hash_val)
         x = [depot.x] + [clients[v].x for v in points]
         y = [depot.y] + [clients[v].y for v in points]
         demand = [0] + [clients[v].delivery[0] for v in points]
@@ -286,6 +283,8 @@ def improve_one_subproblem(sol: Solution, data: Model, start_time: float=None, k
             for j in range(len(route) - 1):
                 cost += dimacs_round(np.sqrt((clients[route[j]].x - clients[route[j + 1]].x) ** 2 + (clients[route[j]].y - clients[route[j + 1]].y) ** 2))
         print(f'Before: {cost}', end=' ')
+        before_cost = cost
+        org_routes = routes.copy()
         for r in sorted(k_nearest[idx], reverse=True):
             del routes[r]
         if True:
@@ -303,6 +302,9 @@ def improve_one_subproblem(sol: Solution, data: Model, start_time: float=None, k
             cost += dimacs_round(np.sqrt((depot.x - clients[route[-1]].x) ** 2 + (depot.y - clients[route[-1]].y) ** 2))
             for j in range(len(route) - 1):
                 cost += dimacs_round(np.sqrt((clients[route[j]].x - clients[route[j + 1]].x) ** 2 + (clients[route[j]].y - clients[route[j + 1]].y) ** 2))
+        if cost > before_cost:
+            cost = before_cost
+            routes = org_routes
         print(f'After: {cost}')
         if start_time:
             cur_time = time.time()
@@ -372,7 +374,7 @@ def solve_by_hgs(data: Model, max_t=None, max_it=None):
         cmd += f' -t {max_t}'
     if max_it:
         cmd += f' -it {max_it}'
-    cmd += ' > out'
+    cmd += ' > out.log'
     os.system(cmd)
     return read_sol(tmp_solution_path)
 
@@ -380,9 +382,9 @@ def improve_by_ls(data: Model, routes):
     tmp_problem_path = 'data/tmp/tmp.cvrptw'
     tmp_solution_path = 'data/tmp/tmp.sol'
     write_problems(data, tmp_problem_path)
-    n = len(data._clients) + 1
     cmd = f'./my_hgs_vrptw/genvrp {tmp_problem_path} {tmp_solution_path} -intensificationProbabilityLS 100 -initialSolution "'
     cmd += routes2str(routes)
     cmd += '"'
+    cmd += ' > out.log'
     os.system(cmd)
     return read_sol(tmp_solution_path)

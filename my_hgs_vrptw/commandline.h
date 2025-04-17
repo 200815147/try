@@ -153,6 +153,8 @@ public:
 					config.circleSectorOverlapToleranceDegrees = atoi(argv[i + 1]);
 				else if (std::string(argv[i]) == "-minCircleSectorSizeDegrees")
 					config.minCircleSectorSizeDegrees = atoi(argv[i + 1]);
+				else if (std::string(argv[i]) == "-runHGS")
+					config.runHGS = atoi(argv[i + 1]) != 0;
 				else
 				{
 					// Output error message and help menu to the command line

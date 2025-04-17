@@ -98,6 +98,7 @@ void Genetic::run(int maxIterNonProd, int timeLimit)
 			params->config.minimumPopulationSize += params->config.growPopulationSize;
 		}
 	}
+	population->exportPopulation(0, params->config.pathSolution + ".population.csv");
 }
 
 Individual* Genetic::crossoverOX(std::pair<const Individual*, const Individual*> parents)
